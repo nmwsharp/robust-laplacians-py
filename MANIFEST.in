@@ -1,0 +1,12 @@
+include README.md LICENSE
+include CMakeLists.txt
+recursive-include deps/geometry-central/src *
+recursive-include deps/geometry-central/include *
+recursive-include deps/geometry-central/cmake *
+recursive-include deps/geometry-central/deps/eigen/Eigen *
+include deps/geometry-central/deps/eigen/COPYING*
+include deps/geometry-central/deps/eigen/README.md
+recursive-include deps/pybind11 *.h CMakeLists.txt *.cmake
+recursive-include src *.cpp *.h
+recursive-include src/robust-laplacian *.py
+exclude dist

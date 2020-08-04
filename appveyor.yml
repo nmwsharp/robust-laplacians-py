@@ -1,0 +1,72 @@
+environment:
+  matrix:
+    - APPVEYOR_BUILD_WORKER_IMAGE: Ubuntu
+      APPVEYOR_JOB_NAME: "python37-x64-ubuntu cp2"
+      CIBW_BUILD: cp2*
+    - APPVEYOR_BUILD_WORKER_IMAGE: Ubuntu
+      APPVEYOR_JOB_NAME: "python37-x64-ubuntu cp3"
+      CIBW_BUILD: cp3*
+    - APPVEYOR_BUILD_WORKER_IMAGE: Ubuntu
+      APPVEYOR_JOB_NAME: "python37-x64-ubuntu pp"
+      CIBW_BUILD: pp*
+    - APPVEYOR_BUILD_WORKER_IMAGE: macos-mojave
+      APPVEYOR_JOB_NAME: "python37-x64-macos-mojave cp2"
+      CIBW_BUILD: cp2*
+    - APPVEYOR_BUILD_WORKER_IMAGE: macos-mojave
+      APPVEYOR_JOB_NAME: "python37-x64-macos-mojave cp3"
+      CIBW_BUILD: cp3*
+    - APPVEYOR_BUILD_WORKER_IMAGE: macos-mojave
+      APPVEYOR_JOB_NAME: "python37-x64-macos-mojave pp"
+      CIBW_BUILD: pp*
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      APPVEYOR_JOB_NAME: "python37-x64-vs2015 cp2"
+      CIBW_BUILD: cp2*
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      APPVEYOR_JOB_NAME: "python37-x64-vs2015 cp3"
+      CIBW_BUILD: cp3*
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      APPVEYOR_JOB_NAME: "python37-x64-vs2015 pp"
+      CIBW_BUILD: pp*
+
+  CIBW_BEFORE_BUILD_LINUX : "yum remove -y cmake && yum install -y cmake3 && ln -sfn /usr/bin/cmake3 /usr/bin/cmake"
+  #CIBW_BUILD_VERBOSITY: 3
+  # testing causes weird failures with osx
+  #CIBW_TEST_COMMAND: python {project}/test/polyscope_test.py backend=openGL_mock
+  CIBW_TEST_COMMAND_WINDOWS: python {project}/test/robust_laplacian_test.py
+  CIBW_TEST_COMMAND_LINUX: python {project}/test/robust_laplacian_test.py 
+  
+  TWINE_USERNAME: __token__
+  # Note: TWINE_PASSWORD is set to an API token in Appveyor settings
+
+  APPVEYOR_SSH_KEY: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCoOsSHZp4V1TMcNw0WJ7IvsJUqDNI+5bdDHvM1HBi5PeMmcUe/hplh34OCsJAM2Rk2vY4j0xj3xkH4efNLnI7gDGhAlSTfRd5jzHM06rOB25yl8tgvIq1RchwANmrlddeh/bywlzWJJf0Je7WHPOmZMIhRHMyZ9jb4d6kpo3QWJEiaar3d8YZL3BykfCZW6Lu6jQXpZ1Ug5MYi4XnBHvLy9RbeMSYrfExqdA5W4fFqqxO668qWB0p//QHAtoxWkPEHUoNMJnDJ85QflodEszPrlX+/tFyEXKpCaPd8v0BV9seaZiaLRTtWpz9UjRuc6tIP27ph0T2lPM1UDOzAukmZLmr+Gk/om+qhsnbZGGM4mv3Jc2yYYkRGTRt0TZ4onSj8U1HTSJji7fe9OG/UHbzYqf9qvcHSIE/y3Pf7kTWPLQihr6Mo7uElmkCqr9FsCEgpiuv2HXHn9dPbIb+jfp4lTeOP8Lh7otLM1UPAAEcdw2FY6TFZdcrWaHBI+p+/Gbu/bDnNUjR2Cwe7scTUX8f3rIBA4baszivavCPXJ88mphfqa/kZbqXuJaiCFUCqHkTwbAM6K4/W2cfnmKvhCDpYSqVscPMFbIx+fKPHfQWqy+hiiZQEBNcP1R292VdF2DX/mTJ523af9YJrEcidONNX6pwIx5LzmXwE4HnfDJNFTQ==
+
+matrix: 
+  fast_finish: true # cancel other jobs once first fails
+
+# Shallow clone
+clone_depth: 5
+
+stack: python 3.7
+
+# For debugging
+#on_finish:
+  #- sh: export APPVEYOR_SSH_BLOCK=true
+  #- sh: curl -sflL 'https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-ssh.sh' | bash -e -
+
+init:
+  - cmd: set PATH=C:\Python37;C:\Python37\Scripts;%PATH%
+
+install: 
+  - git submodule update --init --recursive
+  - python -m pip install cibuildwheel==1.3.0
+  - python -m pip install twine
+    
+build_script:
+  - python setup.py sdist -d wheelhouse --formats=gztar # source build (should really be done just once, but oh well)
+  - python -m cibuildwheel --output-dir wheelhouse # build ALL the wheels
+  - python misc/conditional_deploy_build.py
+
+# Save the generated builds
+artifacts:
+  - path: "wheelhouse\\*"
+    name: Wheels
