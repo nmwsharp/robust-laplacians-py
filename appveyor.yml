@@ -1,14 +1,5 @@
 environment:
   matrix:
-    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-      APPVEYOR_JOB_NAME: "python37-x64-vs2015 cp2"
-      CIBW_BUILD: cp2*
-    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-      APPVEYOR_JOB_NAME: "python37-x64-vs2015 cp3"
-      CIBW_BUILD: cp3*
-    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-      APPVEYOR_JOB_NAME: "python37-x64-vs2015 pp"
-      CIBW_BUILD: pp*
     - APPVEYOR_BUILD_WORKER_IMAGE: Ubuntu
       APPVEYOR_JOB_NAME: "python37-x64-ubuntu cp2"
       CIBW_BUILD: cp2*
@@ -27,6 +18,16 @@ environment:
     - APPVEYOR_BUILD_WORKER_IMAGE: macos-mojave
       APPVEYOR_JOB_NAME: "python37-x64-macos-mojave pp"
       CIBW_BUILD: pp*
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      APPVEYOR_JOB_NAME: "python37-x64-vs2015 cp2"
+      CIBW_BUILD: cp2*
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      APPVEYOR_JOB_NAME: "python37-x64-vs2015 cp3"
+      CIBW_BUILD: cp3*
+    # fails because can't resolve python libraries (???)
+    #- APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      #APPVEYOR_JOB_NAME: "python37-x64-vs2015 pp"
+      #CIBW_BUILD: pp*
 
   # Problem: geometry-central requires cmake 3.8.
 
