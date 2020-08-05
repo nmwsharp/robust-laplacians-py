@@ -28,8 +28,17 @@ environment:
       APPVEYOR_JOB_NAME: "python37-x64-vs2015 pp"
       CIBW_BUILD: pp*
 
-  #CIBW_BEFORE_BUILD_LINUX : "yum remove -y cmake && yum install -y cmake3 && ln -sfn /usr/bin/cmake3 /usr/bin/cmake"
-  CIBW_BEFORE_BUILD_LINUX : "yum remove -y cmake && yum install -y wget && wget https://cmake.org/files/v3.8/cmake-3.8.2.tar.gz && tar -zxf cmake-3.8.2.tar.gz  && cd cmake-3.8.2 &&  ./bootstrap --prefix=/usr/local && make && make install"
+  # Problem: geometry-central requires cmake 3.8.
+
+  # Solution 1: build cmake 3.8 from source. This seems to work, but takes forever.
+  #CIBW_BEFORE_BUILD_LINUX : "yum remove -y cmake && yum install -y wget && wget https://cmake.org/files/v3.8/cmake-3.8.2.tar.gz && tar -zxf cmake-3.8.2.tar.gz  && cd cmake-3.8.2 &&  ./bootstrap --prefix=/usr/local && make && make install"
+
+  # Solution 2: grab the most recent version in the package manager (currently 3.6), then reduce the version number for geometry-central (which seems to still build fine)
+  #CIBW_BEFORE_BUILD_LINUX : "yum remove -y cmake && yum install -y cmake3 && ln -sfn /usr/bin/cmake3 /usr/bin/cmake && sed \"s/VERSION 3\\.8/VERSION 3\\.6/g\"  deps/geometry-central/CMakeLists.txt"
+  
+  # Solution 3: get it from the python package
+  CIBW_BEFORE_BUILD_LINUX : "yum remove -y cmake"
+
   #CIBW_BUILD_VERBOSITY: 3
   # testing causes weird failures with osx
   CIBW_TEST_COMMAND_WINDOWS: python {project}/test/robust_laplacian_test.py

@@ -75,7 +75,7 @@ setup(
     packages=setuptools.find_packages(where="src"),
     ext_modules=[CMakeExtension('.')],
     install_requires=['numpy','scipy'],
-    # setup_requires=['pybind11>=2.4'],
+    setup_requires=['cmake'],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
     test_suite="test",
