@@ -37,7 +37,7 @@ environment:
   #CIBW_BEFORE_BUILD_LINUX : "yum remove -y cmake && yum install -y cmake3 && ln -sfn /usr/bin/cmake3 /usr/bin/cmake && sed \"s/VERSION 3\\.8/VERSION 3\\.6/g\"  deps/geometry-central/CMakeLists.txt"
   
   # Solution 3: get it from the python package
-  CIBW_BEFORE_BUILD_LINUX : "yum remove -y cmake"
+  CIBW_BEFORE_BUILD_LINUX : "yum remove -y cmake && python -m pip install cmake"
 
   #CIBW_BUILD_VERBOSITY: 3
   # testing causes weird failures with osx

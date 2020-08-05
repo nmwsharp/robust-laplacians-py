@@ -75,7 +75,6 @@ setup(
     packages=setuptools.find_packages(where="src"),
     ext_modules=[CMakeExtension('.')],
     install_requires=['numpy','scipy'],
-    setup_requires=['cmake>=3.8.2'],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
     test_suite="test",
