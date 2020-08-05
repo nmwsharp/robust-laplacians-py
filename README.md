@@ -15,17 +15,23 @@ This library implements the algorithm described in [A Laplacian for Nonmanifold 
 Build a point cloud Laplacian, compute its first 10 eigenvectors, and visualize with [Polyscope](https://polyscope.run/py/)
 
 ```shell
-pip install numpy scipy meshio polyscope robust_laplacian
+pip install numpy scipy plyfile polyscope robust_laplacian
 ```
 
 ```py
 import robust_laplacian
-import meshio
+from plyfile import PlyData
+import numpy as np
 import polyscope as ps
 import scipy.sparse.linalg as sla
 
 # Read input
-points = meshio.read("/path/to/cloud.ply").points
+plydata = PlyData.read("/path/to/cloud.ply")
+points = np.vstack((
+    plydata['vertex']['x'],
+    plydata['vertex']['y'],
+    plydata['vertex']['z']
+)).T
 
 # Build point cloud Laplacian
 L, M = robust_laplacian.point_cloud_laplacian(points)
