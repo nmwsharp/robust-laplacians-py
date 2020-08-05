@@ -5,6 +5,8 @@ dist/
 *.pyc
 __pycache__/
 
+*.egg-info
+
 # Editor and OS things
 imgui.ini
 .polyscope.ini
