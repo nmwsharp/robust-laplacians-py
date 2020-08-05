@@ -2,7 +2,7 @@ import numpy as np
 
 import robust_laplacian_bindings as rlb
 
-def mesh_laplacian(verts, faces, mollify_factor=1e-5, return_mass=True):
+def mesh_laplacian(verts, faces, mollify_factor=1e-5):
 
     ## Validate input
     if type(verts) is not np.ndarray:
@@ -19,12 +19,9 @@ def mesh_laplacian(verts, faces, mollify_factor=1e-5, return_mass=True):
     L, M = rlb.buildMeshLaplacian(verts, faces, mollify_factor)
 
     ## Return the result
-    if(return_mass):
-        return L, M
-    else:
-        return L
+    return L, M
 
-def point_cloud_laplacian(points, mollify_factor=1e-5, n_neighbors=30, return_mass=True):
+def point_cloud_laplacian(points, mollify_factor=1e-5, n_neighbors=30):
 
     ## Validate input
     if type(points) is not np.ndarray:
@@ -36,7 +33,4 @@ def point_cloud_laplacian(points, mollify_factor=1e-5, n_neighbors=30, return_ma
     L, M = rlb.buildPointCloudLaplacian(points, mollify_factor, n_neighbors)
 
     ## Return the result
-    if(return_mass):
-        return L, M
-    else:
-        return L
+    return L, M

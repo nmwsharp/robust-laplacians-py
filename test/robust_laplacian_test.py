@@ -12,11 +12,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../src/"))
 import robust_laplacian as rl
 
 
-def generate_verts(n_pts=9999):
+def generate_verts(n_pts=999):
     np.random.seed(777)        
     return np.random.rand(n_pts, 3)
 
-def generate_faces(n_pts=9999):
+def generate_faces(n_pts=999):
     # n_pts should be a multiple of 3 for indexing to work out
     np.random.seed(777)        
     rand_faces = np.random.randint(0, n_pts, size=(2*n_pts,3))
@@ -57,7 +57,7 @@ class TestCore(unittest.TestCase):
         # rl.mesh_laplacian(V, "cat")  
         # rl.mesh_laplacian(V.flatten(), F)  
         # rl.mesh_laplacian(V, F.flatten())  
-    
+   
     def test_point_cloud_laplacian(self):
 
         V = generate_verts()
@@ -76,11 +76,8 @@ class TestCore(unittest.TestCase):
         self.assertGreater(L.sum(), -1e-5)
 
         # Trigger validation errors
-        # rl.mesh_laplacian("cat", F)  
-        # rl.mesh_laplacian(V, "cat")  
-        # rl.mesh_laplacian(V.flatten(), F)  
-        # rl.mesh_laplacian(V, F.flatten())  
-
+        # rl.point_cloud_laplacian("cat")  
+        # rl.point_cloud_laplacian(V.flatten())  
 
 if __name__ == '__main__':
     unittest.main()
