@@ -2,6 +2,9 @@ A Python package for building high-quality Laplace matrices on meshes and point 
 
 The Lapacian is at the heart of many algorithms in across geometry processing, simulation, and machine learning. This library builds a high-quality, robust Laplace matrix which often improves the performance of these algorithms, and wraps it all up in a simple, single-function API! 
 
+Sample: computing eigenvectors of the point cloud Laplacian
+![demo image of eigenvectors on point cloud](https://github.com/nmwsharp/robust-laplacians-py/blob/master/teaser_cloud.jpg?raw=true)
+
 Given as input a triangle mesh with arbitrary connectivity (could be nonmanifold, have boundary, etc), OR a point cloud, this library builds an `NxN` sparse Laplace matrix, where `N` is the number of vertices/points. This Laplace matrix is similar to the _cotan-Laplacian_ used widely in geometric computing, but internally the algorithm constructs an _intrinsic Delaunay triangulation_ of the surface, which gives the Laplace matrix great numerical properties. In particular, the Laplacian is always a symmetric positive-definite matrix, with all positive edge weights. Additionally, this library performs _intrinsic mollification_ to alleviate floating-point issues with degenerate triangles.  
 
 The resulting Laplace matrix `L` is a "weak" Laplace matrix, so we also generate a diagonal lumped mass matrix `M`, where each diagonal entry holds an area associated with the mesh element. The "strong" Laplacian can then be formed as `M^-1 L`, or a Poisson problem could be solved as `L x = M y`. 
