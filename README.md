@@ -101,3 +101,14 @@ This python library is mainly a wrapper around the implementation in the [geomet
   year={2020}
 }
 ```
+
+### For developers
+
+This repo is configured with CI on appveyor to build wheels across platform.
+
+### Deploy a new version
+
+- Commit the desired version to the `master` branch, be sure the version string in `setup.py` corresponds to the new version number.
+- Watch th appveyor builds to ensure the test & build stages succeed and all wheels are compiled.
+- While you're waiting, update the docs.
+- Tag the commit with a tag like `v1.2.3`, matching the version in `setup.py`. This will kick off a new Appveyor build which deploys the wheels to PyPI after compilation.
