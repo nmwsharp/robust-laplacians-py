@@ -1,10 +1,8 @@
 include README.md LICENSE
 include CMakeLists.txt
-recursive-include deps/geometry-central/src *
-recursive-include deps/geometry-central/include *
-recursive-include deps/geometry-central/cmake *
+recursive-include deps/geometry-central *.cpp *.h *.cmake CMakeLists.txt
+recursive-include deps/jc_voronoi *
 recursive-include deps/eigen/Eigen *
-recursive-include deps/jc_voronoi
 include deps/eigen/COPYING*
 include deps/eigen/README.md
 recursive-include deps/pybind11 *.h CMakeLists.txt *.cmake
