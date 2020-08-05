@@ -1,8 +1,11 @@
+#include "point_cloud_utilities.h"
+
 #include "geometrycentral/numerical/linear_algebra_utilities.h"
 #include "geometrycentral/surface/edge_length_geometry.h"
 #include "geometrycentral/surface/intrinsic_mollification.h"
 #include "geometrycentral/surface/manifold_surface_mesh.h"
 #include "geometrycentral/surface/meshio.h"
+#include "geometrycentral/surface/simple_polygon_mesh.h"
 #include "geometrycentral/surface/surface_mesh.h"
 #include "geometrycentral/surface/surface_mesh_factories.h"
 #include "geometrycentral/surface/tufted_laplacian.h"
@@ -34,11 +37,48 @@ buildMeshLaplacian(const DenseMatrix<double>& vMat, const DenseMatrix<size_t>& f
   SparseMatrix<double> L, M;
   std::tie(L, M) = buildTuftedLaplacian(*mesh, *geometry, mollifyFactor);
 
-  double minVal = 999999;
-  for (size_t i = 0; i < M.rows(); i++) {
-    minVal = std::fmin(minVal, M.coeffRef(i, i));
+  return std::make_tuple(L, M);
+}
+
+std::tuple<SparseMatrix<double>, SparseMatrix<double>> buildPointCloudLaplacian(const DenseMatrix<double>& vMat,
+                                                                                double mollifyFactor, size_t nNeigh) {
+
+  SimplePolygonMesh cloudMesh;
+
+  // Copy to std vector representation
+  cloudMesh.vertexCoordinates.resize(vMat.rows());
+  for (size_t iP = 0; iP < cloudMesh.vertexCoordinates.size(); iP++) {
+    cloudMesh.vertexCoordinates[iP] = Vector3{vMat(iP, 0), vMat(iP, 1), vMat(iP, 2)};
   }
-  std::cout << "min  M = " << minVal << std::endl;
+
+  // Generate the local triangulations for the point cloud
+  Neighbors_t neigh = generate_knn(cloudMesh.vertexCoordinates, nNeigh);
+  std::vector<Vector3> normals = generate_normals(cloudMesh.vertexCoordinates, neigh);
+  std::vector<std::vector<Vector2>> coords = generate_coords_projection(cloudMesh.vertexCoordinates, normals, neigh);
+  LocalTriangulationResult localTri = build_delaunay_triangulations(coords, neigh, false);
+
+  // Take the union of all triangles in all the neighborhoods
+  for (size_t iPt = 0; iPt < cloudMesh.vertexCoordinates.size(); iPt++) {
+    const std::vector<size_t>& thisNeigh = neigh[iPt];
+    size_t nNeigh = thisNeigh.size();
+
+    // Accumulate over triangles
+    for (const auto& tri : localTri.pointTriangles[iPt]) {
+      std::array<size_t, 3> triGlobal = {thisNeigh[tri[0]], thisNeigh[tri[1]], thisNeigh[tri[2]]};
+      cloudMesh.polygons.push_back({triGlobal[0], triGlobal[1], triGlobal[2]});
+    }
+  }
+
+
+  std::unique_ptr<SurfaceMesh> mesh;
+  std::unique_ptr<VertexPositionGeometry> geometry;
+  std::tie(mesh, geometry) = makeSurfaceMeshAndGeometry(cloudMesh.polygons, cloudMesh.vertexCoordinates);
+
+  SparseMatrix<double> L, M;
+  std::tie(L, M) = buildTuftedLaplacian(*mesh, *geometry, mollifyFactor);
+
+  L = L / 3.;
+  M = M / 3.;
 
   return std::make_tuple(L, M);
 }
@@ -48,8 +88,12 @@ buildMeshLaplacian(const DenseMatrix<double>& vMat, const DenseMatrix<size_t>& f
 PYBIND11_MODULE(robust_laplacian_bindings, m) {
   m.doc() = "Robust laplacian low-level bindings";
   
+
   m.def("buildMeshLaplacian", &buildMeshLaplacian, "build the mesh Laplacian", 
       py::arg("vMat"), py::arg("fMat"), py::arg("mollifyFactor"));
+  
+  m.def("buildPointCloudLaplacian", &buildPointCloudLaplacian, "build the point cloud Laplacian", 
+      py::arg("vMat"), py::arg("mollifyFactor"), py::arg("nNeigh"));
 }
 
 // clang-format on
