@@ -6,8 +6,13 @@ import numpy as np
 import scipy
 
 # Path to where the bindings live
-sys.path.append(os.path.join(os.path.dirname(__file__), "../build/"))
-sys.path.append(os.path.join(os.path.dirname(__file__), "../src/"))
+added_paths = [
+    os.path.join(os.path.dirname(__file__), "../build/"),
+    os.path.join(os.path.dirname(__file__), "../src/")
+]
+print("adding paths: \n{}".format("\n".join([os.path.abspath(p) for p in added_paths])))
+for p in added_paths:
+    sys.path.append(p)
 
 import robust_laplacian as rl
 

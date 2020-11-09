@@ -70,6 +70,9 @@ std::tuple<SparseMatrix<double>, SparseMatrix<double>> buildPointCloudLaplacian(
   }
 
 
+  // strip unreferenced vertices (can we argue this should never happen? good regardless for robustness.)
+  std::vector<size_t> oldToNewMap = cloudMesh.stripUnusedVertices();
+
   std::unique_ptr<SurfaceMesh> mesh;
   std::unique_ptr<VertexPositionGeometry> geometry;
   std::tie(mesh, geometry) = makeSurfaceMeshAndGeometry(cloudMesh.polygons, cloudMesh.vertexCoordinates);
@@ -79,6 +82,82 @@ std::tuple<SparseMatrix<double>, SparseMatrix<double>> buildPointCloudLaplacian(
 
   L = L / 3.;
   M = M / 3.;
+
+  // If necessary, re-index matrices to account for any unreferenced vertices which were skipped.
+  // For any unreferenced verts, creates an identity row/col in the Laplacian and
+  bool anyUnreferenced = false;
+  for (const size_t& ind : oldToNewMap) {
+    if (ind == INVALID_IND) anyUnreferenced = true;
+  }
+  if (anyUnreferenced) {
+    double laplacianReplaceVal = 1.0;
+    double massReplaceVal = -1e-3;
+
+
+    // Invert the map
+    std::vector<size_t> newToOldMap(cloudMesh.nVertices());
+    for (size_t iOld = 0; iOld < oldToNewMap.size(); iOld++) {
+      if (oldToNewMap[iOld] != INVALID_IND) {
+        newToOldMap[oldToNewMap[iOld]] = iOld;
+      }
+    }
+    size_t N = oldToNewMap.size();
+
+    { // Update the Laplacian
+
+      std::vector<Eigen::Triplet<double>> triplets;
+
+      // Copy entries
+      for (int k = 0; k < L.outerSize(); k++) {
+        for (typename SparseMatrix<double>::InnerIterator it(L, k); it; ++it) {
+          double thisVal = it.value();
+          int i = it.row();
+          int j = it.col();
+          triplets.emplace_back(newToOldMap[i], newToOldMap[j], thisVal);
+        }
+      }
+
+      // Add diagonal entries for unreferenced
+      for (size_t iOld = 0; iOld < oldToNewMap.size(); iOld++) {
+        if (oldToNewMap[iOld] == INVALID_IND) {
+          triplets.emplace_back(iOld, iOld, laplacianReplaceVal);
+        }
+      }
+
+      // Update the matrix
+      L = SparseMatrix<double>(N, N);
+      L.setFromTriplets(triplets.begin(), triplets.end());
+    }
+
+    { // Update the mass matrix
+      std::vector<Eigen::Triplet<double>> triplets;
+
+      // Copy entries
+      double smallestVal = std::numeric_limits<double>::infinity();
+      for (int k = 0; k < M.outerSize(); k++) {
+        for (typename SparseMatrix<double>::InnerIterator it(M, k); it; ++it) {
+          double thisVal = it.value();
+          int i = it.row();
+          int j = it.col();
+          triplets.emplace_back(newToOldMap[i], newToOldMap[j], thisVal);
+          smallestVal = std::fmin(smallestVal, std::abs(thisVal));
+        }
+      }
+
+      // Add diagonal entries for unreferenced
+      double newMassVal = massReplaceVal < 0 ? -massReplaceVal * smallestVal : massReplaceVal;
+      for (size_t iOld = 0; iOld < oldToNewMap.size(); iOld++) {
+        if (oldToNewMap[iOld] == INVALID_IND) {
+          triplets.emplace_back(iOld, iOld, newMassVal);
+        }
+      }
+
+      // Update the matrix
+      M = SparseMatrix<double>(N, N);
+      M.setFromTriplets(triplets.begin(), triplets.end());
+    }
+  }
+
 
   return std::make_tuple(L, M);
 }
