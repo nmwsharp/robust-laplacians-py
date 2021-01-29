@@ -1,6 +1,6 @@
-[![actions status linux](https://github.com/nmwsharp/robust-laplacians-py/workflows/linux/badge.svg)](https://github.com/nmwsharp/robust-laplacians-py/actions)
-[![actions status macOS](https://github.com/nmwsharp/robust-laplacians-py/workflows/macOS/badge.svg)](https://github.com/nmwsharp/robust-laplacians-py/actions)
-[![actions status windows](https://github.com/nmwsharp/robust-laplacians-py/workflows/windows/badge.svg)](https://github.com/nmwsharp/robust-laplacians-py/actions)
+[![actions status linux](https://github.com/nmwsharp/robust-laplacians-py/workflows/Test%20Linux/badge.svg)](https://github.com/nmwsharp/robust-laplacians-py/actions)
+[![actions status macOS](https://github.com/nmwsharp/robust-laplacians-py/workflows/Test%20macOS/badge.svg)](https://github.com/nmwsharp/robust-laplacians-py/actions)
+[![actions status windows](https://github.com/nmwsharp/robust-laplacians-py/workflows/Test%20Windows/badge.svg)](https://github.com/nmwsharp/robust-laplacians-py/actions)
 [![PyPI](https://img.shields.io/pypi/v/robust-laplacian?style=plastic)](https://pypi.org/project/robust-laplacian/)
 
 A Python package for high-quality Laplace matrices on meshes and point clouds. `pip install robust_laplacian`
