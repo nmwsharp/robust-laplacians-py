@@ -12,9 +12,10 @@ from distutils.version import LooseVersion
 __version__ = '0.1.0'
 
 class CMakeExtension(Extension):
-    def __init__(self, name, sourcedir=''):
+    def __init__(self, name, sourcedir='', exclude_arch=False):
         Extension.__init__(self, name, sources=[])
         self.sourcedir = os.path.abspath(sourcedir)
+        self.exclude_arch = exclude_arch
 
 
 class CMakeBuild(build_ext):
@@ -43,39 +44,68 @@ class CMakeBuild(build_ext):
 
         if platform.system() == "Windows":
             cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
-            if sys.maxsize > 2**32:
-                cmake_args += ['-A', 'x64']
-            build_args += ['--', '/m']
+            if not ext.exclude_arch: 
+                if sys.maxsize > 2**32:
+                    cmake_args += ['-A', 'x64']
+                else:
+                    cmake_args += ['-A', 'Win32']
+                build_args += ['--', '/m']
         else:
             cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
             build_args += ['--', '-j3']
+
+        if self.distribution.verbose > 0:
+            cmake_args += ['-DCMAKE_VERBOSE_MAKEFILE:BOOL=ON']
+
 
         env = os.environ.copy()
         env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
                                                               self.distribution.get_version())
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
+
+        if(self.distribution.verbose > 0):
+            print("Running cmake configure command: " + " ".join(['cmake', ext.sourcedir] + cmake_args))
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
+        
+        if(self.distribution.verbose > 0):
+            print("Running cmake build command: " + " ".join(['cmake', '--build', '.'] + build_args))
         subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
 
-with open('README.md') as f:
-    long_description = f.read()
+def main():
 
-setup(
-    name='robust_laplacian',
-    version=__version__,
-    author='Nicholas Sharp',
-    author_email='nsharp@cs.cmu.edu',
-    url='https://github.com/nmwsharp/robust-laplacians-py',
-    description='Robust Laplace matrices for meshes and point clouds',
-    long_description=long_description,
-    long_description_content_type='text/markdown',
-    license="MIT",
-    package_dir = {'': 'src'},
-    packages=setuptools.find_packages(where="src"),
-    ext_modules=[CMakeExtension('.')],
-    install_requires=['numpy','scipy'],
-    cmdclass=dict(build_ext=CMakeBuild),
-    zip_safe=False,
-    test_suite="test",
-)
+    with open('README.md') as f:
+        long_description = f.read()
+
+    # Applies to windows only.
+    # Normally, we set cmake's -A option to specify 64 bit platform when need (and /m for build), 
+    # but these are errors with non-visual-studio generators. CMake does not seem to have an idiomatic 
+    # way to disable, so we expose an option here. A more robust solution would auto-detect based on the 
+    # generator.  Really, this option might be better titled "exclude visual-studio-settings-on-windows"
+    if "--exclude-arch" in sys.argv:
+        exclude_arch = True
+        sys.argv.remove('--exclude-arch')
+    else:
+        exclude_arch = False
+
+    setup(
+        name='robust_laplacian',
+        version=__version__,
+        author='Nicholas Sharp',
+        author_email='nsharp@cs.cmu.edu',
+        url='https://github.com/nmwsharp/robust-laplacians-py',
+        description='Robust Laplace matrices for meshes and point clouds',
+        long_description=long_description,
+        long_description_content_type='text/markdown',
+        license="MIT",
+        package_dir = {'': 'src'},
+        packages=setuptools.find_packages(where="src"),
+        ext_modules=[CMakeExtension('.')],
+        install_requires=['numpy','scipy'],
+        cmdclass=dict(build_ext=CMakeBuild),
+        zip_safe=False,
+        test_suite="test",
+    )
+
+if __name__ == "__main__":
+    main()
