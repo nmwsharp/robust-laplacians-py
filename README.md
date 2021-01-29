@@ -1,4 +1,6 @@
-[![appveyor build status](https://ci.appveyor.com/api/projects/status/5l0qkxq9feuf6h8b/branch/master?svg=true)](https://ci.appveyor.com/project/nmwsharp/robust-laplacians-py/branch/master)
+[![actions status linux](https://github.com/nmwsharp/robust-laplacians-py/workflows/linux/badge.svg)](https://github.com/nmwsharp/robust-laplacians-py/actions)
+[![actions status macOS](https://github.com/nmwsharp/robust-laplacians-py/workflows/macOS/badge.svg)](https://github.com/nmwsharp/robust-laplacians-py/actions)
+[![actions status windows](https://github.com/nmwsharp/robust-laplacians-py/workflows/windows/badge.svg)](https://github.com/nmwsharp/robust-laplacians-py/actions)
 [![PyPI](https://img.shields.io/pypi/v/robust-laplacian?style=plastic)](https://pypi.org/project/robust-laplacian/)
 
 A Python package for high-quality Laplace matrices on meshes and point clouds. `pip install robust_laplacian`
@@ -112,11 +114,11 @@ This python library is mainly a wrapper around the implementation in the [geomet
 
 ### For developers
 
-This repo is configured with CI on appveyor to build wheels across platform.
+This repo is configured with CI on github actions to build wheels across platform.
 
 ### Deploy a new version
 
-- Commit the desired version to the `master` branch, be sure the version string in `setup.py` corresponds to the new version number.
-- Watch th appveyor builds to ensure the test & build stages succeed and all wheels are compiled.
+- Commit the desired version to the `master` branch, be sure the version string in `setup.py` corresponds to the new version number. Include the string `[ci build]` in the commit message to ensure a build happens.
+- Watch th github actions builds to ensure the test & build stages succeed and all wheels are compiled.
 - While you're waiting, update the docs.
-- Tag the commit with a tag like `v1.2.3`, matching the version in `setup.py`. This will kick off a new Appveyor build which deploys the wheels to PyPI after compilation.
+- Tag the commit with a tag like `v1.2.3`, matching the version in `setup.py`. This will kick off a new github actions build which deploys the wheels to PyPI after compilation.
