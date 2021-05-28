@@ -1,19 +1,12 @@
 #include "point_cloud_utilities.h"
 
+#include "geometrycentral/utilities/elementary_geometry.h"
 #include "geometrycentral/utilities/knn.h"
 
 #include "Eigen/Dense"
 
 #include <cfloat>
-
-// jcv Voronoi library
-#define JC_VORONOI_IMPLEMENTATION
-#define JCV_REAL_TYPE double
-#define JCV_ATAN2 atan2
-#define JCV_SQRT sqrt
-#define JCV_FLT_MAX DBL_MAX
-#define JCV_PI 3.141592653589793115997963468544185161590576171875
-#include "jc_voronoi/jc_voronoi.h"
+#include <numeric>
 
 std::vector<std::vector<size_t>> generate_knn(const std::vector<Vector3>& points, size_t k) {
 
@@ -22,7 +15,6 @@ std::vector<std::vector<size_t>> generate_knn(const std::vector<Vector3>& points
   std::vector<std::vector<size_t>> result;
   for (size_t i = 0; i < points.size(); i++) {
     result.emplace_back(finder.kNearestNeighbors(i, k));
-    result.back().insert(result.back().begin(), i); // add the center point to the front
   }
 
   return result;
@@ -38,13 +30,13 @@ std::vector<Vector3> generate_normals(const std::vector<Vector3>& points, const 
   for (size_t iPt = 0; iPt < points.size(); iPt++) {
     size_t nNeigh = neigh[iPt].size();
     Vector3 center = points[iPt];
-    MatrixXd localMat(3, neigh[iPt].size() - 1);
+    MatrixXd localMat(3, neigh[iPt].size());
 
-    for (size_t iN = 1; iN < nNeigh; iN++) {
+    for (size_t iN = 0; iN < nNeigh; iN++) {
       Vector3 neighPos = points[neigh[iPt][iN]] - center;
-      localMat(0, iN - 1) = neighPos.x;
-      localMat(1, iN - 1) = neighPos.y;
-      localMat(2, iN - 1) = neighPos.z;
+      localMat(0, iN) = neighPos.x;
+      localMat(1, iN) = neighPos.y;
+      localMat(2, iN) = neighPos.z;
     }
 
     // Smallest singular vector is best normal
@@ -89,167 +81,206 @@ std::vector<std::vector<Vector2>> generate_coords_projection(const std::vector<V
   return coords;
 }
 
-
+// For each planar-projected neighborhood, generate the triangles in the Delaunay triangulation which are incident on
+// the center vertex.
+//
+// This could be done robustly via e.g. Shewchuk's triangle.c. However, instead we use a simple self-contained strategy
+// which leverages the needs of this particular situation. In particular, we don't really care about getting exactly the
+// Delaunay triangulation; we're just looking for any sane triangulation to use as input the the subsequent step. We
+// just use Delaunay because we like the property that (in the limit of sampling), it's a triple-cover of the domain;
+// with other strategies it's hard to quantify how many times our triangles cover the domain. This makes the problem
+// easier, because for degenerate/underdetermined cases, we're happy to output any triangulation, even if it's not the
+// Delaunay triangulation in exact arithmetic.
+//
+// This strategy works by angularly sorting points relative to the neighborhood center, then walking around circle
+// identifying pairs of edges which form Delaunay triangles (more details inline). In particular, using a sorting of the
+// points helps to distinguish indeterminate cases and always output some triangles. Additionally, a few heuristics are
+// included for handling of degenerate and collinear points. This routine has O(n*k^2) complexity, where k is the
+// neighborhood size).
 LocalTriangulationResult build_delaunay_triangulations(const std::vector<std::vector<Vector2>>& coords,
-                                                       const Neighbors_t& neigh, bool generateAllTris) {
+                                                       const Neighbors_t& neigh) {
+
+  // A few innocent numerical parameters
+  const double PERTURB_THRESH = 1e-7;         // in units of relative length
+  const double ANGLE_COLLINEAR_THRESH = 1e-5; // in units of radians
+  const double OUTSIDE_EPS = 1e-4;            // in units of relative length
+
+  // NOTE: This is not robust if the entire neighbohood is coincident (or very nearly coincident) with the centerpoint.
+  // Though in that case, the generate_normals() routine will probably also have issues.
+
   size_t nPts = coords.size();
   LocalTriangulationResult result;
-  result.voronoiAreas.resize(nPts);
   result.pointTriangles.resize(nPts);
-
 
   for (size_t iPt = 0; iPt < nPts; iPt++) {
     size_t nNeigh = neigh[iPt].size();
-    //std::cout << "\nPoint has " << nNeigh << " neighbors" << std::endl;
-
-    // Copy neighbor coords to a raw buffer
-    std::vector<jcv_point> rawCoords;
     double lenScale = norm(coords[iPt].back());
-    for (size_t iN = 0; iN < nNeigh; iN++) {
-      Vector2 p = coords[iPt][iN];
 
-      // If there is a point other than the center point right on top of the origin, perturb it slightly. jcv doesn't do
-      // great with duplicate points, and we can't recover if something happens near the origin.
-      if (iN != 0 && norm(p) < 1e-6 * lenScale) {
-        p.x += 1e-6 * lenScale;
-      }
-
-      rawCoords.push_back({p.x, p.y});
-
-      //std::cout << "  p = " << p << std::endl;
+    // Something is hopelessly degenerate, don't even bother trying. No triangles for this point.
+    if (!std::isfinite(lenScale) || lenScale <= 0) {
+      continue;
     }
 
-    // run the Voronoi algorithm
-    jcv_diagram diagram;
-    memset(&diagram, 0, sizeof(jcv_diagram));
-    jcv_diagram_generate(nNeigh, &rawCoords[0], 0, 0, &diagram);
+    // Local copies of points
+    std::vector<Vector2> perturbPoints = coords[iPt];
+    std::vector<size_t> perturbInds = neigh[iPt];
 
-    // find the site at the center vertex (is this predictable?)
-    const jcv_site* centerSite = nullptr;
-    {
-      const jcv_site* sites = jcv_diagram_get_sites(&diagram);
-      for (int i = 0; i < diagram.numsites; i++) {
-        const jcv_site* site = &sites[i];
-        if (static_cast<size_t>(site->index) == 0) {
-          centerSite = site;
+
+    { // Perturb points which are extremely close to the source
+      for (size_t iNeigh = 0; iNeigh < nNeigh; iNeigh++) {
+        Vector2& neighPt = perturbPoints[iNeigh];
+        double dist = norm(neighPt);
+        if (dist < lenScale * PERTURB_THRESH) { // need to perturb
+          Vector2 dir = normalize(neighPt);
+          if (!isfinite(dir)) { // even direction is degenerate :(
+            // pick a direction from index
+            double thetaDir = (2. * M_PI * iNeigh) / nNeigh;
+            dir = Vector2::fromAngle(thetaDir);
+          }
+
+          // Set the distance from the origin for the pertubed point. Including the index avoids creating many
+          // co-circular points; no need to stress the Delaunay triangulation unnessecarily.
+          double len = (1. + static_cast<double>(iNeigh) / nNeigh) * lenScale * PERTURB_THRESH * 10;
+
+          neighPt = len * dir; // update the point
+        }
+      }
+    }
+
+    size_t closestPointInd = 0;
+    double closestPointDist = std::numeric_limits<double>::infinity();
+    bool hasBoundary = false;
+    { // Find the starting point for the angular search.
+      // If there is boundary, it's the beginning of the interior region; otherwise its the closest point.
+      // (either way, this point is guaranteed to appear in the triangulation)
+      // NOTE: boundary check is actually done after inline sort below, since its cheaper there
+
+      for (size_t iNeigh = 0; iNeigh < nNeigh; iNeigh++) {
+        Vector2 neighPt = perturbPoints[iNeigh];
+        double thisPointDist = norm(neighPt);
+        if (thisPointDist < closestPointDist) {
+          closestPointDist = thisPointDist;
+          closestPointInd = iNeigh;
+        }
+      }
+    }
+
+
+    std::vector<size_t> sortInds(nNeigh);
+    { // = Angularly sort the points CCW, such that the closest point comes first
+
+      // Angular sort
+      std::vector<double> pointAngles(nNeigh);
+      for (size_t i = 0; i < nNeigh; i++) {
+        pointAngles[i] = arg(perturbPoints[i]);
+      }
+      std::iota(std::begin(sortInds), std::end(sortInds), 0);
+      std::sort(sortInds.begin(), sortInds.end(),
+                [&](const size_t& a, const size_t& b) -> bool { return pointAngles[a] < pointAngles[b]; });
+
+      // Check if theres a gap of >= PI between any two consecutive points. If so it's a boundary.
+      double largestGap = -1;
+      size_t largestGapEndInd = 0;
+      for (size_t i = 0; i < nNeigh; i++) {
+        size_t j = (i + 1) % nNeigh;
+        double angleI = pointAngles[sortInds[i]];
+        double angleJ = pointAngles[sortInds[j]];
+        double gap;
+        if (i + 1 == nNeigh) {
+          gap = angleJ - (angleI + 2 * M_PI);
+        } else {
+          gap = angleJ - angleI;
+        }
+
+        if (gap > largestGap) {
+          largestGap = gap;
+          largestGapEndInd = j;
+        }
+      }
+
+      // The start of the cyclic ordering is either
+      size_t firstInd;
+      if (largestGap > (M_PI - ANGLE_COLLINEAR_THRESH)) {
+        firstInd = largestGapEndInd;
+        hasBoundary = true;
+      } else {
+        firstInd = std::distance(sortInds.begin(), std::find(sortInds.begin(), sortInds.end(), closestPointInd));
+        hasBoundary = false;
+      }
+
+      // Cyclically permute to ensure starting point comes first
+      std::rotate(sortInds.begin(), sortInds.begin() + firstInd, sortInds.end());
+    }
+
+    size_t edgeStartInd = 0;
+    std::vector<std::array<size_t, 3>>& thisPointTriangles = result.pointTriangles[iPt]; // accumulate result
+
+    // end point should wrap around the check the first point only if there is no boundary
+    size_t searchEnd = nNeigh + (hasBoundary ? 0 : 1);
+
+    // Walk around the angularly-sorted points, forming triangles spanning angular regions. To construct each triangle,
+    // we start with leg at edgeStartInd, then search over edgeEndInd to find the first other end which has an empty
+    // circumcircle. Once it is found, we form a triangle and being searching again from edgeEndInd.
+    //
+    // At first, this might sound like it has n^3 complexity, since there are n^2 triangles to consider, and testing
+    // each costs n. However, since we march around the angular direction in increasing order, we will only test at most
+    // O(n) triangles, leading to n^2 complexity.
+    while (edgeStartInd < nNeigh) {
+      size_t iStart = sortInds[edgeStartInd];
+      Vector2 startPos = perturbPoints[iStart];
+
+      // lookahead and find the first triangle we can form with an empty (or nearly empty) circumcircle
+      bool foundTri = false;
+      for (size_t edgeEndInd = edgeStartInd + 1; edgeEndInd < searchEnd; edgeEndInd++) {
+        size_t iEnd = sortInds[edgeEndInd % nNeigh];
+        Vector2 endPos = perturbPoints[iEnd];
+
+        // If the start and end points are too close to being colinear, don't bother
+        Vector2 startPosDir = unit(startPos);
+        Vector2 endPosDir = unit(endPos);
+        if (std::fabs(cross(startPosDir, endPosDir)) < ANGLE_COLLINEAR_THRESH) {
+          continue;
+        }
+
+        // Find the circumcenter and circumradius
+        geometrycentral::RayRayIntersectionResult2D isect =
+            rayRayIntersection(0.5 * startPos, startPosDir.rotate90(), 0.5 * endPos, -endPosDir.rotate90());
+        Vector2 circumcenter = 0.5 * startPos + isect.tRay1 * startPosDir.rotate90();
+        double circumradius = norm(circumcenter);
+
+        // Find the minimum distance to the circumcenter
+        double nearestDistSq = std::numeric_limits<double>::infinity();
+        for (size_t iTest = 0; iTest < nNeigh; iTest++) {
+          if (iTest == iStart || iTest == iEnd) continue; // skip the points forming the triangle
+          double thisDistSq = norm2(circumcenter - perturbPoints[iTest]);
+          nearestDistSq = std::fmin(nearestDistSq, thisDistSq);
+
+          // if it's already strictly inside, no need to keep searching
+          if (nearestDistSq < circumradius * circumradius) break;
+        }
+        double nearestDist = std::sqrt(nearestDistSq);
+
+        // Accept the triangle if its circumcircle is sufficiently empty
+        // NOTE: The choice of signs in this expression is important: we preferential DO accept triangles whos
+        // circumcircle is barely empty. This makes sense here because our circular loop already avoids any risk of
+        // accepting overlapping triangles; the risk is in not accepting any, so we should preferrentially accept.
+        if (nearestDist + lenScale * OUTSIDE_EPS > circumradius) {
+          std::array<size_t, 3> triInds = {0, iStart, iEnd};
+          thisPointTriangles.push_back(triInds);
+
+          // advance the circular search to find a triangle starting at this edge
+          edgeStartInd = edgeEndInd;
+          foundTri = true;
           break;
         }
       }
-      if (centerSite == nullptr) throw std::runtime_error("could not find site for center vertex");
-    }
 
-    // == Get the area of the center cell
-    double voronoiArea = 0;
-    {
-      const jcv_graphedge* e = centerSite->edges;
-      while (e) {
-        Vector2 p0{centerSite->p.x, centerSite->p.y};
-        Vector2 p1{e->pos[0].x, e->pos[0].y};
-        Vector2 p2{e->pos[1].x, e->pos[1].y};
-
-        // (here triangle is not a Delaunay triangle, but part of an implicit fan triangulation from the center)
-        double triArea = 0.5 * std::abs(cross(p1 - p0, p2 - p0));
-        voronoiArea += triArea;
-
-        e = e->next;
+      // if we couldn't find any triangles, increment the start index
+      if (!foundTri) {
+        edgeStartInd++;
       }
     }
-    result.voronoiAreas[iPt] = voronoiArea;
-
-    // == Find all triangles
-    if (generateAllTris) {
-      result.allTriangles.resize(nPts);
-
-      // Build a list of all edges
-      const jcv_edge* edge = jcv_diagram_get_edges(&diagram);
-      std::vector<std::vector<size_t>> localEdges(nNeigh);
-      while (edge) {
-        if (edge->sites[0] && edge->sites[1]) {
-          size_t indA = edge->sites[0]->index;
-          size_t indB = edge->sites[1]->index;
-
-          localEdges[indA].push_back(indB);
-          localEdges[indB].push_back(indA);
-        }
-        edge = jcv_diagram_get_next_edge(edge);
-      }
-
-      // Find triplets in the edge list
-      // (this has an O(d) factor that could be removed with a hashset, but since degree will be small this is probably
-      // faster)
-
-      for (size_t iA = 0; iA < nNeigh; iA++) {
-        for (size_t iB : localEdges[iA]) {
-          if (!(iA < iB)) continue; // only consider if iA < iB < iC
-
-          for (size_t iC : localEdges[iA]) {
-            if (!(iB < iC)) continue; // only consider if iA < iB < iC
-
-            // Check if iB is connected to iC
-            std::vector<size_t>& bNeigh = localEdges[iB];
-            if (std::find(bNeigh.begin(), bNeigh.end(), iC) == bNeigh.end()) continue;
-            // This is a good triangle!
-
-            size_t triA = iA;
-            size_t triB = iB;
-            size_t triC = iC;
-
-            // Swap to orient if needed
-            Vector2 pA = coords[iPt][triA];
-            Vector2 pB = coords[iPt][triB];
-            Vector2 pC = coords[iPt][triC];
-            if (cross(pB - pA, pC - pA) < 0.) std::swap(triB, triC);
-
-            std::array<size_t, 3> triInds = {triA, triB, triC};
-            result.allTriangles[iPt].push_back(triInds);
-          }
-        }
-      }
-    }
-
-    // == Find triangles connected to the source
-    {
-
-      // First pass, mark all neighbors with an edge to the source
-      std::vector<char> neighConnected(nNeigh, false);
-      const jcv_graphedge* e = centerSite->edges;
-      while (e) {
-        if (e->neighbor) {
-          size_t neighInd = e->neighbor->index;
-          neighConnected[neighInd] = true;
-        }
-        e = e->next;
-      }
-
-      // Second pass, any edge between two connected points completes a triangle
-      const jcv_edge* edge = jcv_diagram_get_edges(&diagram);
-      while (edge) {
-        if (edge->sites[0] && edge->sites[1]) {
-          size_t indA = edge->sites[0]->index;
-          size_t indB = edge->sites[1]->index;
-
-          if (neighConnected[indA] && neighConnected[indB]) {
-            // found a triangle!
-
-            // check orientation to make sure we emit a CCW triangle
-            Vector2 pA = coords[iPt][indA];
-            Vector2 pB = coords[iPt][indB];
-            if (cross(pA, pB) < 0.) std::swap(indA, indB);
-
-            std::array<size_t, 3> triInds = {0, indA, indB};
-            result.pointTriangles[iPt].push_back(triInds);
-          }
-        }
-        edge = jcv_diagram_get_next_edge(edge);
-      }
-    }
-
-
-    jcv_diagram_free(&diagram);
   }
 
   return result;
 }
-
-
-
