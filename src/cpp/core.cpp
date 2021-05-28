@@ -153,7 +153,7 @@ std::tuple<SparseMatrix<double>, SparseMatrix<double>> buildPointCloudLaplacian(
   Neighbors_t neigh = generate_knn(cloudMesh.vertexCoordinates, nNeigh);
   std::vector<Vector3> normals = generate_normals(cloudMesh.vertexCoordinates, neigh);
   std::vector<std::vector<Vector2>> coords = generate_coords_projection(cloudMesh.vertexCoordinates, normals, neigh);
-  LocalTriangulationResult localTri = build_delaunay_triangulations(coords, neigh, false);
+  LocalTriangulationResult localTri = build_delaunay_triangulations(coords, neigh);
 
   // Take the union of all triangles in all the neighborhoods
   for (size_t iPt = 0; iPt < cloudMesh.vertexCoordinates.size(); iPt++) {
