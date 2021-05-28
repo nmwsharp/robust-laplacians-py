@@ -6,13 +6,15 @@ import numpy as np
 import scipy
 
 # Path to where the bindings live
-added_paths = [
-    os.path.join(os.path.dirname(__file__), "../build/"),
-    os.path.join(os.path.dirname(__file__), "../src/")
-]
-print("adding paths: \n{}".format("\n".join([os.path.abspath(p) for p in added_paths])))
-for p in added_paths:
-    sys.path.append(p)
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+if os.name == 'nt': # if Windows
+    # handle default location where VS puts binary
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "build", "Debug")))
+else:
+    # normal / unix case
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "build")))
+
 
 import robust_laplacian as rl
 
