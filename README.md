@@ -59,7 +59,7 @@ for i in range(n_eig):
 ps.show()
 ```
 
-
+**_NOTE:_** No one can agree on the sign convention for the Laplacian. This library builds the _positive semi-definite_ Laplace matrix, where the diagonal entries are positive and off-diagonal entries are negative. This is the _opposite_ of the sign used by e.g. libIGL in `igl.cotmatrix`, so you may need to flip a sign when converting code.
 
 ### API
 
