@@ -6,6 +6,7 @@ import numpy as np
 import scipy
 
 # Path to where the bindings live
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 if os.name == 'nt': # if Windows
     # handle default location where VS puts binary
@@ -63,6 +64,33 @@ class TestCore(unittest.TestCase):
         # rl.mesh_laplacian(V, "cat")  
         # rl.mesh_laplacian(V.flatten(), F)  
         # rl.mesh_laplacian(V, F.flatten())  
+    
+    def test_mesh_laplacian_unused_verts(self):
+
+        V = generate_verts()
+        F = generate_faces()
+        
+        # add an unused vertex at the beginning and end
+        V = np.vstack((
+                    np.array([[0., 0., 0.,]]),
+                    V, 
+                    np.array([[0., 0., 0.,]])
+                )) 
+        F = F + 1
+
+        L, M = rl.mesh_laplacian(V, F)
+
+        # Validate mass matrix    
+        self.assertTrue(is_nonnegative(M))
+        self.assertTrue(is_symmetric(M))
+        self.assertEqual(M.sum(), M.diagonal().sum())
+        
+        # Validate Laplacian 
+        self.assertTrue(is_symmetric(L))
+        off_L = scipy.sparse.diags(L.diagonal()) - L
+        self.assertTrue(is_nonnegative(off_L)) # positive edge weights
+        self.assertGreater(L.sum(), -1e-5)
+
    
     def test_point_cloud_laplacian(self):
 
