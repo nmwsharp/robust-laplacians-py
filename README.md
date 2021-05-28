@@ -92,7 +92,6 @@ Alternately, if no precompiled binary matches your system `pip` will attempt to 
 
 ### Known limitations
 
-- Mesh input must not have any unreferenced vertices.
 - For point clouds, this repo uses a simple method to generate planar Delaunay triangulations, which may not be totally robust to collinear or degenerate point clouds.
 
 ### Dependencies
