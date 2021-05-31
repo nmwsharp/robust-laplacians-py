@@ -162,7 +162,7 @@ std::tuple<SparseMatrix<double>, SparseMatrix<double>> buildPointCloudLaplacian(
 
     // Accumulate over triangles
     for (const auto& tri : localTri.pointTriangles[iPt]) {
-      std::array<size_t, 3> triGlobal = {thisNeigh[tri[0]], thisNeigh[tri[1]], thisNeigh[tri[2]]};
+      std::array<size_t, 3> triGlobal = {iPt, thisNeigh[tri[1]], thisNeigh[tri[2]]};
       cloudMesh.polygons.push_back({triGlobal[0], triGlobal[1], triGlobal[2]});
     }
   }

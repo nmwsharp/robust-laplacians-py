@@ -29,9 +29,16 @@ std::vector<Vector3> generate_normals(const std::vector<Vector3>& points, const 
 
   for (size_t iPt = 0; iPt < points.size(); iPt++) {
     size_t nNeigh = neigh[iPt].size();
-    Vector3 center = points[iPt];
-    MatrixXd localMat(3, neigh[iPt].size());
 
+    // Compute centroid
+    Vector3 center{0., 0., 0.};
+    for (size_t iN = 0; iN < nNeigh; iN++) {
+      center += points[neigh[iPt][iN]];
+    }
+    center /= nNeigh + 1;
+
+    // Assemble matrix os vectors from centroid
+    MatrixXd localMat(3, neigh[iPt].size());
     for (size_t iN = 0; iN < nNeigh; iN++) {
       Vector3 neighPos = points[neigh[iPt][iN]] - center;
       localMat(0, iN) = neighPos.x;
@@ -125,7 +132,6 @@ LocalTriangulationResult build_delaunay_triangulations(const std::vector<std::ve
     std::vector<Vector2> perturbPoints = coords[iPt];
     std::vector<size_t> perturbInds = neigh[iPt];
 
-
     { // Perturb points which are extremely close to the source
       for (size_t iNeigh = 0; iNeigh < nNeigh; iNeigh++) {
         Vector2& neighPt = perturbPoints[iNeigh];
@@ -146,6 +152,7 @@ LocalTriangulationResult build_delaunay_triangulations(const std::vector<std::ve
         }
       }
     }
+
 
     size_t closestPointInd = 0;
     double closestPointDist = std::numeric_limits<double>::infinity();
@@ -250,13 +257,15 @@ LocalTriangulationResult build_delaunay_triangulations(const std::vector<std::ve
 
         // Find the minimum distance to the circumcenter
         double nearestDistSq = std::numeric_limits<double>::infinity();
+        double circumradSqConservative = (circumradius - lenScale * OUTSIDE_EPS);
+        circumradSqConservative *= circumradSqConservative;
         for (size_t iTest = 0; iTest < nNeigh; iTest++) {
           if (iTest == iStart || iTest == iEnd) continue; // skip the points forming the triangle
           double thisDistSq = norm2(circumcenter - perturbPoints[iTest]);
           nearestDistSq = std::fmin(nearestDistSq, thisDistSq);
 
           // if it's already strictly inside, no need to keep searching
-          if (nearestDistSq < circumradius * circumradius) break;
+          if (nearestDistSq < circumradSqConservative) break;
         }
         double nearestDist = std::sqrt(nearestDistSq);
 
@@ -265,7 +274,7 @@ LocalTriangulationResult build_delaunay_triangulations(const std::vector<std::ve
         // circumcircle is barely empty. This makes sense here because our circular loop already avoids any risk of
         // accepting overlapping triangles; the risk is in not accepting any, so we should preferrentially accept.
         if (nearestDist + lenScale * OUTSIDE_EPS > circumradius) {
-          std::array<size_t, 3> triInds = {0, iStart, iEnd};
+          std::array<size_t, 3> triInds = {std::numeric_limits<size_t>::max(), iStart, iEnd};
           thisPointTriangles.push_back(triInds);
 
           // advance the circular search to find a triangle starting at this edge
