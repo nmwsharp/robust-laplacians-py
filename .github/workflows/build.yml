@@ -14,13 +14,14 @@ jobs:
     name: Build wheels on ${{ matrix.os }}
 
     # Only run if the commit message contains '[ci build]' OR always run if it's a tag
-    #if: "contains(toJSON(github.event.head_commit.message), '[ci build]') || contains(github.ref, 'refs/tags')"
+    # This will not respect the tag if it appears in a pull request commit message. Those builds always show up as 'synchronize' events, and there is no easy way to get the corresponding commit messages.
+    # More info here: https://github.community/t/accessing-commit-message-in-pull-request-event/17158/13
+    if: "contains(toJSON(github.event.commits.*.message), '[ci build]') || contains(github.ref, 'refs/tags')"
 
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        #os: [ubuntu-18.04, windows-2019, macos-10.15]
-        os: [ubuntu-18.04, macos-10.15]
+        os: [ubuntu-18.04, windows-2019, macos-10.15]
     env:
       CIBW_BUILD_VERBOSITY: 3
       CIBW_BUILD: "cp3*-manylinux_x86_64 cp3*-manylinux_i686 cp3*-macosx_x86_64 cp3*-macosx_universal2 cp3*-macosx_arm64 cp3*-win_amd64 cp3*-win32" 
@@ -29,10 +30,6 @@ jobs:
       CIBW_BEFORE_BUILD_LINUX : "yum remove -y cmake && python -m pip install cmake"
 
     steps:
-
-      - name: echo commit message
-        run: |
-          echo "${{ github.event.head_commit.message }}"
 
       - uses: actions/checkout@v2
         with:
