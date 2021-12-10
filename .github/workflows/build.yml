@@ -32,7 +32,7 @@ jobs:
 
       - name: echo commit message
         run: |
-          echo ${{ github.event.head_commit.message }}
+          echo "${{ github.event.head_commit.message }}"
 
       - uses: actions/checkout@v2
         with:
