@@ -19,7 +19,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-18.04, windows-2019, macos-10.15]
+        #os: [ubuntu-18.04, windows-2019, macos-10.15]
+        os: [ubuntu-18.04, macos-10.15]
     env:
       CIBW_BUILD_VERBOSITY: 3
       CIBW_BUILD: "cp3*-manylinux_x86_64 cp3*-manylinux_i686 cp3*-macosx_x86_64 cp3*-macosx_universal2 cp3*-macosx_arm64 cp3*-win_amd64 cp3*-win32" 
