@@ -4,7 +4,7 @@ name: Build
 on:
   push:
     branches:    
-      - master
+      - *
     tags:        
       - v*
 
@@ -13,7 +13,7 @@ jobs:
     name: Build wheels on ${{ matrix.os }}
 
     # Only run if the commit message contains '[ci build]' OR always run if it's a tag
-    #if: "contains(toJSON(github.event.commits.*.message), '[ci build]') || contains(github.ref, 'refs/tags')"
+    if: "contains(toJSON(github.event.commits.*.message), '[ci build]') || contains(github.ref, 'refs/tags')"
 
     runs-on: ${{ matrix.os }}
     strategy:
