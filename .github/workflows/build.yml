@@ -4,9 +4,10 @@ name: Build
 on:
   push:
     branches:    
-      - *
-    tags:        
-      - v*
+      - master
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build_wheels:
