@@ -14,7 +14,7 @@ jobs:
     name: Build wheels on ${{ matrix.os }}
 
     # Only run if the commit message contains '[ci build]' OR always run if it's a tag
-    if: "contains(toJSON(github.event.head_commit.message), '[ci build]') || contains(github.ref, 'refs/tags')"
+    #if: "contains(toJSON(github.event.head_commit.message), '[ci build]') || contains(github.ref, 'refs/tags')"
 
     runs-on: ${{ matrix.os }}
     strategy:
@@ -28,6 +28,11 @@ jobs:
       CIBW_BEFORE_BUILD_LINUX : "yum remove -y cmake && python -m pip install cmake"
 
     steps:
+
+      - name: echo commit message
+        run: |
+          echo ${{ github.event.head_commit.message }}
+
       - uses: actions/checkout@v2
         with:
           submodules: 'recursive'
