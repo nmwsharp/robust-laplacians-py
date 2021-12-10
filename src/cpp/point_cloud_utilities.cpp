@@ -23,8 +23,6 @@ std::vector<std::vector<size_t>> generate_knn(const std::vector<Vector3>& points
 
 std::vector<Vector3> generate_normals(const std::vector<Vector3>& points, const Neighbors_t& neigh) {
 
-  using namespace Eigen;
-
   std::vector<Vector3> normals(points.size());
 
   for (size_t iPt = 0; iPt < points.size(); iPt++) {
@@ -38,7 +36,7 @@ std::vector<Vector3> generate_normals(const std::vector<Vector3>& points, const 
     center /= nNeigh + 1;
 
     // Assemble matrix os vectors from centroid
-    MatrixXd localMat(3, neigh[iPt].size());
+    Eigen::MatrixXd localMat(3, neigh[iPt].size());
     for (size_t iN = 0; iN < nNeigh; iN++) {
       Vector3 neighPos = points[neigh[iPt][iN]] - center;
       localMat(0, iN) = neighPos.x;
@@ -47,8 +45,8 @@ std::vector<Vector3> generate_normals(const std::vector<Vector3>& points, const 
     }
 
     // Smallest singular vector is best normal
-    JacobiSVD<MatrixXd> svd(localMat, ComputeThinU);
-    Vector3d bestNormal = svd.matrixU().col(2);
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(localMat, Eigen::ComputeThinU);
+    Eigen::Vector3d bestNormal = svd.matrixU().col(2);
 
     Vector3 N{bestNormal(0), bestNormal(1), bestNormal(2)};
     N = unit(N);
