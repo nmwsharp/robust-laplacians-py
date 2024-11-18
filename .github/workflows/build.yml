@@ -54,11 +54,11 @@ jobs:
       - uses: actions/setup-python@v2
         name: Install Python
         with:
-          python-version: '3.7'
+          python-version: '3.8'
 
       - name: Install cibuildwheel
         run: |
-          python -m pip install cibuildwheel==2.13.1
+          python -m pip install cibuildwheel==2.21.3
 
       
       - name: Package source distribution
