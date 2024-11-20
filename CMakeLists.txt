@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.1.0)
 project(robust-laplacian-py)
 
 # Recurse in to pybind
+set(PYBIND11_NEWPYTHON ON)
 add_subdirectory(deps/pybind11)
 
 # set location of eigen for geometry-central
@@ -20,3 +21,5 @@ include_directories(robust_laplacian_bindings ${CMAKE_CURRENT_SOURCE_DIR}/src/cp
 include_directories(robust_laplacian_bindings ${CMAKE_CURRENT_SOURCE_DIR}/deps/jc_voronoi/include)
 
 target_link_libraries(robust_laplacian_bindings PRIVATE geometry-central)
+
+install(TARGETS robust_laplacian_bindings LIBRARY DESTINATION .)
