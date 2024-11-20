@@ -1,6 +1,8 @@
 name: Test Build
 
-# Run on the main branch and on tags (note conditional below)
+# NOTE: build logic is duplicated here and in publish.yml
+
+# Run on the master branch commit push and PRs to master (note conditional below)
 on:
   push:
     branches:    
