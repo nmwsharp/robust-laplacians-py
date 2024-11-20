@@ -117,7 +117,7 @@ This repo is configured with CI on github actions to build wheels across platfor
 
 ### Deploy a new version
 
-- Commit the desired version to the `master` branch, be sure the version string in `setup.py` corresponds to the new version number. Include the string `[ci build]` in the commit message to ensure a build happens.
-- Watch th github actions builds to ensure the test & build stages succeed and all wheels are compiled.
+- Commit the desired updates to the `master` branch (or via PR). Include the string `[ci build]` in the commit message to ensure a build happens.
+- Watch the github actions builds to ensure the test & build stages succeed and all wheels are compiled.
 - While you're waiting, update the docs.
-- Tag the commit with a tag like `v1.2.3`, matching the version in `setup.py`. This will kick off a new github actions build which deploys the wheels to PyPI after compilation.
+- Create a commit bumping the version in `pyproject.toml`. Include the string `[ci publish]` in the commit message and push.  This will kick off a new github actions build which deploys the wheels to PyPI after compilation. Use the github UI to create a new release + tag matching the version in `pyproject.toml`.

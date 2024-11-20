@@ -1,6 +1,6 @@
 [project]
 name = "robust_laplacian"
-version = "0.2.8"
+version = "1.0.0"
 description = "Robust Laplace matrices for meshes and point clouds"
 readme = "README.md"
 license.file = "LICENSE"
