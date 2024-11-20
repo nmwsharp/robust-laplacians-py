@@ -1,0 +1,8 @@
+[tool.cibuildwheel]
+skip = "cp36-*" # scikit-build-core requires >=3.7
+build-verbosity = 3
+
+[tool.cibuildwheel.linux]
+before-all = [
+    "yum remove -y cmake",
+]
