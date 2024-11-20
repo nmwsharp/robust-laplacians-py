@@ -71,6 +71,12 @@ jobs:
 
       - name: List downloaded files from artifact
         run: ls dist | cat  # piping through cat prints one per line
+      
+      - name: Flatten directory
+        run: mv dist/* dist/ && find . -empty -type d -delete
+      
+      - name: List downloaded files from artifact after flatten
+        run: ls dist | cat  # piping through cat prints one per line
 
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
