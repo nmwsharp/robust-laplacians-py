@@ -21,7 +21,7 @@ jobs:
         python-version: '3.9'
 
     - name: install python packages
-      run: python3 -m pip install numpy
+      run: python3 -m pip install numpy scipy
 
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug ..
