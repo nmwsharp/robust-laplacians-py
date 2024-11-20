@@ -1,4 +1,4 @@
-name: Build
+name: Test Build
 
 # Run on the main branch and on tags (note conditional below)
 on:
