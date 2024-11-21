@@ -37,6 +37,10 @@ jobs:
         uses: pypa/cibuildwheel@v2.21 
         with:
           config-file: ".github/workflows/cibuildwheel_config.toml"
+      
+      - name: Copy source distribution into wheelhouse
+        if: runner.os == 'Linux'
+        run: mv dist/*.tar.gz wheelhouse/
 
       # Upload binaries to the github artifact store
       - name: Upload wheels
@@ -71,9 +75,11 @@ jobs:
 
       - name: List downloaded files from artifact
         run: ls dist | cat  # piping through cat prints one per line
-      
-      - name: Flatten directory
-        run: mv dist/* dist/ && find . -empty -type d -delete
+
+        # dist directory has subdirs from the different jobs, merge them into one directory and delete
+        # the empty leftover dirs 
+      - name: Flatten directory 
+        run: find dist -mindepth 2 -type f -exec mv -t dist {} + && find dist -type d -empty -delete
       
       - name: List downloaded files from artifact after flatten
         run: ls dist | cat  # piping through cat prints one per line
