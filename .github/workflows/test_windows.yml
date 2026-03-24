@@ -30,4 +30,4 @@ jobs:
       run: cd build && cmake --build "."
 
     - name: run test
-      run: python test/potpourri3d_test.py
+      run: python test/robust_laplacian_test.py
