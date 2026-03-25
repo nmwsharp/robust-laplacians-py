@@ -5,13 +5,13 @@ import robust_laplacian_bindings as rlb
 def mesh_laplacian(verts, faces, mollify_factor=1e-5):
 
     ## Validate input
-    if type(verts) is not np.ndarray:
-        raise ValueError("`verts` should be a numpy array")
+    if not isinstance(verts, np.ndarray):
+        raise ValueError("`verts` should be an instance of numpy array")
     if (len(verts.shape) != 2) or (verts.shape[1] != 3):
         raise ValueError("`verts` should have shape (V,3), shape is " + str(verts.shape))
     
-    if type(faces) is not np.ndarray:
-        raise ValueError("`faces` should be a numpy array")
+    if not isinstance(faces, np.ndarray):
+        raise ValueError(f"`faces` should be an instance of numpy array")
     if (len(faces.shape) != 2) or (faces.shape[1] != 3):
         raise ValueError("`faces` should have shape (F,3), shape is " + str(faces.shape))
 
